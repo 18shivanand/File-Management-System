@@ -83,20 +83,20 @@ export const FileList: React.FC = () => {
     <div className="p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Uploaded Files</h2>
       {/* --- Search & Filter UI --- */}
-      <div className="mb-6 flex flex-wrap gap-2 items-end">
+      <div className="mb-6 flex flex-nowrap items-end gap-3">
         <input
           type="text"
           placeholder="Search filename"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="border px-2 py-1 rounded"
+          className="border px-2 py-1 rounded w-40"
         />
         <input
           type="text"
           placeholder="File type"
           value={fileType}
           onChange={e => setFileType(e.target.value)}
-          className="border px-2 py-1 rounded"
+          className="border px-2 py-1 rounded w-32"
         />
         <input
           type="number"
