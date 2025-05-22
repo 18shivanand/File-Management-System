@@ -1,19 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fileService } from '../services/fileService';
 import { File as FileType } from '../types/file';
 import { DocumentIcon, TrashIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export const FileList: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // Query for fetching files
-  const { data: files, isLoading, error } = useQuery({
-    queryKey: ['files'],
-    queryFn: fileService.getFiles,
+  // Filter states
+  const [search, setSearch] = useState('');
+  const [fileType, setFileType] = useState('');
+  const [sizeMin, setSizeMin] = useState('');
+  const [sizeMax, setSizeMax] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // Query for all files (no pagination)
+  const { data: files, isLoading, error } = useQuery<FileType[]>({
+    queryKey: [
+      'files',
+      { search, fileType, sizeMin, sizeMax, dateFrom, dateTo },
+    ],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (fileType) params.append('file_type__icontains', fileType);
+      if (sizeMin) params.append('size__gte', sizeMin);
+      if (sizeMax) params.append('size__lte', sizeMax);
+      if (dateFrom) params.append('uploaded_at__date__gte', dateFrom);
+      if (dateTo) params.append('uploaded_at__date__lte', dateTo);
+      return fileService.getFiles(params.toString());
+    },
   });
 
-  // Mutation for deleting files
+  // Mutations
   const deleteMutation = useMutation({
     mutationFn: fileService.deleteFile,
     onSuccess: () => {
@@ -21,7 +41,6 @@ export const FileList: React.FC = () => {
     },
   });
 
-  // Mutation for downloading files
   const downloadMutation = useMutation({
     mutationFn: ({ fileUrl, filename }: { fileUrl: string; filename: string }) =>
       fileService.downloadFile(fileUrl, filename),
@@ -43,51 +62,57 @@ export const FileList: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-3">
-            <div className="h-8 bg-gray-200 rounded"></div>
-            <div className="h-8 bg-gray-200 rounded"></div>
-            <div className="h-8 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-red-400"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">Failed to load files. Please try again.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Uploaded Files</h2>
+      {/* --- Dynamic Search & Filter UI --- */}
+      <div className="mb-6 flex flex-wrap gap-2 items-end">
+        <input
+          type="text"
+          placeholder="Search filename"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="border px-2 py-1 rounded"
+        />
+        <input
+          type="text"
+          placeholder="File type"
+          value={fileType}
+          onChange={e => setFileType(e.target.value)}
+          className="border px-2 py-1 rounded"
+        />
+        <input
+          type="number"
+          placeholder="Min size (bytes)"
+          value={sizeMin}
+          onChange={e => setSizeMin(e.target.value)}
+          className="border px-2 py-1 rounded w-32"
+        />
+        <input
+          type="number"
+          placeholder="Max size (bytes)"
+          value={sizeMax}
+          onChange={e => setSizeMax(e.target.value)}
+          className="border px-2 py-1 rounded w-32"
+        />
+        <input
+          type="date"
+          placeholder="From date"
+          value={dateFrom}
+          onChange={e => setDateFrom(e.target.value)}
+          className="border px-2 py-1 rounded"
+        />
+        <input
+          type="date"
+          placeholder="To date"
+          value={dateTo}
+          onChange={e => setDateTo(e.target.value)}
+          className="border px-2 py-1 rounded"
+        />
+      </div>
+      {/* --- End Dynamic Search & Filter UI --- */}
+
+      {/* File List */}
       {!files || files.length === 0 ? (
         <div className="text-center py-12">
           <DocumentIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -99,7 +124,7 @@ export const FileList: React.FC = () => {
       ) : (
         <div className="mt-6 flow-root">
           <ul className="-my-5 divide-y divide-gray-200">
-            {files.map((file) => (
+            {files.map((file: FileType) => (
               <li key={file.id} className="py-4">
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
@@ -142,4 +167,4 @@ export const FileList: React.FC = () => {
       )}
     </div>
   );
-}; 
+};

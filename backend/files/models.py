@@ -12,10 +12,10 @@ def file_upload_path(instance, filename):
 class File(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     file = models.FileField(upload_to=file_upload_path)
-    original_filename = models.CharField(max_length=255)
-    file_type = models.CharField(max_length=100)
-    size = models.BigIntegerField()
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    original_filename = models.CharField(max_length=255, db_index=True)
+    file_type = models.CharField(max_length=100, db_index=True)
+    size = models.BigIntegerField(db_index=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True, db_index=True)
     hash = models.CharField(max_length=64, db_index=True, null=True, blank=True)  # SHA256 hash
     
     class Meta:
