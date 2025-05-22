@@ -4,11 +4,17 @@ from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.pagination import PageNumberPagination
 from .models import File
 from .serializers import FileSerializer
 import hashlib
 
 # Create your views here.
+
+class FilePagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class FileViewSet(viewsets.ModelViewSet):
     queryset = File.objects.all()
@@ -16,12 +22,12 @@ class FileViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['original_filename']
     filterset_fields = {
-        'file_type': ['exact', 'icontains'],  # <-- add 'icontains'
+        'file_type': ['exact', 'icontains'],
         'size': ['gte', 'lte'],
         'uploaded_at': ['date__gte', 'date__lte'],
     }
     ordering_fields = ['uploaded_at', 'size', 'original_filename']
-    pagination_class = None  # <-- Remove pagination
+    pagination_class = FilePagination  # <-- Enable pagination here
 
     def create(self, request, *args, **kwargs):
         file_obj = request.FILES.get('file')

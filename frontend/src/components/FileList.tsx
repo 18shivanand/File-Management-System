@@ -7,21 +7,26 @@ import { DocumentIcon, TrashIcon, ArrowDownTrayIcon } from '@heroicons/react/24/
 export const FileList: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // Filter states
+  // Filter and pagination states
   const [search, setSearch] = useState('');
   const [fileType, setFileType] = useState('');
   const [sizeMin, setSizeMin] = useState('');
   const [sizeMax, setSizeMax] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
-  // Query for all files (no pagination)
-  const { data: files, isLoading, error } = useQuery<FileType[]>({
+  // Query for paginated files
+  const { data, isLoading, error } = useQuery<{
+    results: FileType[];
+    count: number;
+  }>({
     queryKey: [
       'files',
-      { search, fileType, sizeMin, sizeMax, dateFrom, dateTo },
+      { search, fileType, sizeMin, sizeMax, dateFrom, dateTo, page, pageSize },
     ],
-    queryFn: () => {
+    queryFn: async (): Promise<{ results: FileType[]; count: number }> => {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (fileType) params.append('file_type__icontains', fileType);
@@ -29,7 +34,15 @@ export const FileList: React.FC = () => {
       if (sizeMax) params.append('size__lte', sizeMax);
       if (dateFrom) params.append('uploaded_at__date__gte', dateFrom);
       if (dateTo) params.append('uploaded_at__date__lte', dateTo);
-      return fileService.getFiles(params.toString());
+      params.append('page', String(page));
+      params.append('page_size', String(pageSize));
+      // Ensure getFiles returns { results, count }
+      const response = await fileService.getFiles(params.toString());
+      if (Array.isArray(response)) {
+        // If the response is an array, wrap it
+        return { results: response, count: response.length };
+      }
+      return response;
     },
   });
 
@@ -62,10 +75,14 @@ export const FileList: React.FC = () => {
     }
   };
 
+  const files = data?.results || [];
+  const total = data?.count || 0;
+  const totalPages = Math.ceil(total / pageSize);
+
   return (
     <div className="p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-4">Uploaded Files</h2>
-      {/* --- Dynamic Search & Filter UI --- */}
+      {/* --- Search & Filter UI --- */}
       <div className="mb-6 flex flex-wrap gap-2 items-end">
         <input
           type="text"
@@ -86,14 +103,14 @@ export const FileList: React.FC = () => {
           placeholder="Min size (bytes)"
           value={sizeMin}
           onChange={e => setSizeMin(e.target.value)}
-          className="border px-2 py-1 rounded w-32"
+          className="border px-3 py-1 rounded w-48"
         />
         <input
           type="number"
           placeholder="Max size (bytes)"
           value={sizeMax}
           onChange={e => setSizeMax(e.target.value)}
-          className="border px-2 py-1 rounded w-32"
+          className="border px-3 py-1 rounded w-48"
         />
         <input
           type="date"
@@ -109,8 +126,17 @@ export const FileList: React.FC = () => {
           onChange={e => setDateTo(e.target.value)}
           className="border px-2 py-1 rounded"
         />
+        <select
+          value={pageSize}
+          onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+          className="border px-2 py-1 rounded"
+        >
+          {[5, 10, 15, 20, 50].map(size => (
+            <option key={size} value={size}>{size} per page</option>
+          ))}
+        </select>
       </div>
-      {/* --- End Dynamic Search & Filter UI --- */}
+      {/* --- End Search & Filter UI --- */}
 
       {/* File List */}
       {!files || files.length === 0 ? (
@@ -163,6 +189,29 @@ export const FileList: React.FC = () => {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <button
+            onClick={() => setPage(page - 1)}
+            disabled={page === 1}
+            className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
+          >
+            Prev
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(page + 1)}
+            disabled={page === totalPages}
+            className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>
